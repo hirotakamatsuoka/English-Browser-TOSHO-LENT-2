@@ -1,0 +1,163 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ui</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;font:13px "Segoe UI","Yu Gothic UI","Meiryo UI",sans-serif;color:#202124;user-select:none;background:#dee1e6}
+button{font:inherit;border:0;background:transparent;color:#5f6368;cursor:pointer;padding:0}
+svg{display:block}
+#tabs{height:44px;display:flex;align-items:flex-end;padding:0 6px}
+#tablist{display:flex;align-items:flex-end;min-width:0;flex:0 1 auto;max-width:calc(100% - 44px)}
+.tab{position:relative;flex:0 1 240px;min-width:44px;height:38px;display:flex;align-items:center;gap:6px;padding:0 6px 0 10px;border-radius:8px 8px 0 0;color:#5f6368;overflow:hidden}
+.tab:not(.active):hover{background:rgba(255,255,255,.55)}
+.tab.active{background:#fff;color:#202124}
+.tab .ic{flex:none;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+.tab .ic img{width:16px;height:16px}
+.tab .ic.spin::before{content:"";width:12px;height:12px;border:2px solid #c4c7c5;border-top-color:#1a73e8;border-radius:50%;animation:s .8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.tab .ti{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab .au{flex:none;display:flex}
+.tab .x{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.tab .x:hover{background:rgba(0,0,0,.12)}
+.tab.drop-before::before,.tab.drop-after::after{content:"";position:absolute;top:4px;bottom:4px;width:2px;background:#1a73e8}
+.tab.drop-before::before{left:0}.tab.drop-after::after{right:0}
+#newtab{width:38px;height:38px;margin:0 0 3px 4px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+#newtab:hover{background:rgba(0,0,0,.1)}
+#toolbar{height:52px;background:#fff;display:flex;align-items:center;gap:2px;padding:0 8px;border-bottom:1px solid #dadce0}
+.tb{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.tb:hover:not(:disabled){background:#f1f3f4}
+.tb:disabled{opacity:.35;cursor:default}
+#pill{flex:1;min-width:0;height:42px;margin:0 6px;display:flex;align-items:center;gap:6px;background:#f1f3f4;border-radius:21px;padding:0 4px 0 16px;border:2px solid transparent}
+#pill:focus-within{background:#fff;border-color:#1a73e8}
+#sec{flex:none;display:flex;align-items:center;color:#5f6368}
+#sec .warn{font-size:11px;color:#b3261e;white-space:nowrap}
+#addr{flex:1;min-width:0;border:0;outline:0;background:transparent;font:15px "Segoe UI","Yu Gothic UI",sans-serif;color:#202124;user-select:text}
+#star{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+#star:hover{background:#e3e5e8}
+#star.on{color:#1a73e8}
+#dl.busy,#fs.on{color:#1a73e8}
+</style></head>
+<body>
+<div id="tabs"><div id="tablist"></div><button id="newtab" title="新しいタブ (Ctrl+T)"></button></div>
+<div id="toolbar">
+  <button class="tb" id="back" title="戻る (Alt+←)"></button>
+  <button class="tb" id="fwd" title="進む (Alt+→)"></button>
+  <button class="tb" id="reload" title="再読み込み (F5)"></button>
+  <button class="tb" id="home" title="ホーム (Alt+Home)"></button>
+  <div id="pill"><span id="sec"></span>
+    <input id="addr" type="text" spellcheck="false" autocomplete="off" list="sug" placeholder="検索またはURLを入力">
+    <button id="star" title="ブックマーク (Ctrl+D)"></button></div>
+  <datalist id="sug"></datalist>
+  <button class="tb" id="dl" title="ダウンロード"></button>
+  <button class="tb" id="fs" title="全画面表示（Windowsのタスクバーも隠す）"></button>
+  <button class="tb" id="hide" title="タブバーとツールバーを隠す"></button>
+  <button class="tb" id="menu" title="メニュー"></button>
+</div>
+<script>
+const P={
+ back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+ fwd:'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
+ reload:'M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
+ stop:'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+ home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+ star:'M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z',
+ starOn:'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+ dl:'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
+ more:'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+ plus:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+ vol:'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z',
+ mute:'M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z',
+ globe:'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.93 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z',
+ full:'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z',
+ unfull:'M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z',
+ up:'M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z',
+ lock:'M18 8h-1V6A5 5 0 0 0 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6a3 3 0 0 1 6 0v2H9V6z'
+};
+const svg=(d,s=24)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="currentColor"><path d="${d}"/></svg>`;
+const $=id=>document.getElementById(id);
+$('back').innerHTML=svg(P.back); $('fwd').innerHTML=svg(P.fwd); $('home').innerHTML=svg(P.home);
+$('dl').innerHTML=svg(P.dl); $('menu').innerHTML=svg(P.more); $('hide').innerHTML=svg(P.up); $('newtab').innerHTML=svg(P.plus,18);
+
+let S=null, dragId=null;
+api.on('state',s=>{S=s; if(dragId===null) render();});
+api.on('focus-address',()=>{ $('addr').focus(); $('addr').select(); });
+api.invoke('ui:ready').then(s=>{S=s; render();});
+
+function render(){
+  if(!S) return;
+  const list=$('tablist'); list.textContent='';
+  for(const t of S.tabs){
+    const el=document.createElement('div');
+    el.className='tab'+(t.active?' active':'');
+    el.draggable=true; el.dataset.id=t.id; el.title=t.title;
+    const ic=document.createElement('span'); ic.className='ic';
+    const globe=()=>{ic.innerHTML=svg(P.globe,16);};
+    if(t.loading) ic.classList.add('spin');
+    else if(t.favicon){ const im=new Image(); im.src=t.favicon; im.onerror=globe; ic.appendChild(im); }
+    else globe();
+    const ti=document.createElement('span'); ti.className='ti'; ti.textContent=t.title;
+    el.append(ic,ti);
+    if(t.audible||t.muted){
+      const au=document.createElement('span'); au.className='au'; au.innerHTML=svg(t.muted?P.mute:P.vol,16); el.appendChild(au);
+    }
+    const x=document.createElement('button'); x.className='x'; x.innerHTML=svg(P.stop,14); x.title='タブを閉じる';
+    x.onclick=e=>{ e.stopPropagation(); api.invoke('tabs:close',t.id); };
+    el.appendChild(x);
+    el.onclick=()=>api.invoke('tabs:activate',t.id);
+    el.onauxclick=e=>{ if(e.button===1){ e.preventDefault(); api.invoke('tabs:close',t.id); } };
+    el.oncontextmenu=e=>{ e.preventDefault(); api.invoke('tab:menu',t.id); };
+    el.ondragstart=e=>{ dragId=t.id; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(t.id)); };
+    el.ondragover=e=>{
+      if(dragId===null) return; e.preventDefault();
+      const r=el.getBoundingClientRect(), before=e.clientX<r.left+r.width/2;
+      el.classList.toggle('drop-before',before); el.classList.toggle('drop-after',!before);
+    };
+    el.ondragleave=()=>el.classList.remove('drop-before','drop-after');
+    el.ondrop=e=>{
+      e.preventDefault();
+      const r=el.getBoundingClientRect(), before=e.clientX<r.left+r.width/2;
+      const ids=S.tabs.map(v=>v.id).filter(v=>v!==dragId);
+      let i=ids.indexOf(t.id); if(!before) i++;
+      ids.splice(i,0,dragId);
+      api.invoke('tabs:reorder',ids);
+    };
+    el.ondragend=()=>{ dragId=null; render(); };
+    list.appendChild(el);
+  }
+  const n=S.nav;
+  $('back').disabled=!n.canGoBack; $('fwd').disabled=!n.canGoForward;
+  $('reload').innerHTML=svg(n.loading?P.stop:P.reload);
+  $('reload').title=n.loading?'読み込みを中止':'再読み込み (F5)';
+  $('sec').innerHTML=n.secure?svg(P.lock,14):(n.insecure?'<span class="warn">保護されていない通信</span>':'');
+  if(document.activeElement!==$('addr')) $('addr').value=n.display;
+  $('star').innerHTML=svg(n.bookmarked?P.starOn:P.star,18);
+  $('star').classList.toggle('on',n.bookmarked);
+  $('dl').classList.toggle('busy',S.downloading);
+  $('fs').innerHTML=svg(S.fullscreen?P.unfull:P.full); $('fs').classList.toggle('on',S.fullscreen);
+}
+
+$('newtab').onclick=()=>api.invoke('tabs:new');
+$('back').onclick=()=>api.invoke('nav:back');
+$('fwd').onclick=()=>api.invoke('nav:forward');
+$('reload').onclick=()=>api.invoke('nav:reload');
+$('home').onclick=()=>api.invoke('nav:home');
+$('star').onclick=()=>api.invoke('bookmark:toggle');
+$('dl').onclick=()=>api.invoke('downloads:open-page');
+$('fs').onclick=()=>api.invoke('win:fullscreen');
+$('hide').onclick=()=>api.invoke('chrome:hide');
+$('menu').onclick=()=>{ const r=$('menu').getBoundingClientRect(); api.invoke('menu:main',{x:Math.max(0,r.right-320),y:r.bottom}); };
+
+const addr=$('addr');
+addr.addEventListener('focus',()=>addr.select());
+addr.addEventListener('blur',()=>{ if(S) addr.value=S.nav.display; });
+addr.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ const v=addr.value; api.invoke('nav:go',v); addr.blur(); }
+  else if(e.key==='Escape'){ addr.value=S?S.nav.display:''; addr.select(); }
+});
+let st=null;
+addr.addEventListener('input',()=>{
+  clearTimeout(st);
+  st=setTimeout(async()=>{
+    const items=await api.invoke('suggest',addr.value);
+    const dl=$('sug'); dl.textContent='';
+    for(const it of items){ const o=document.createElement('option'); o.value=it.url; o.label=it.title||''; dl.appendChild(o); }
+  },120);
+});
+</script></body></html>

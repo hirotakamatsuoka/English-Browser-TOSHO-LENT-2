@@ -1,0 +1,27 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>エラー</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>.page{max-width:560px;padding-top:12vh}h1{font-size:24px}code{background:#eceff1;padding:1px 6px;border-radius:4px}</style></head>
+<body><div class="page">
+<h1>このページを表示できません</h1>
+<p id="host" class="muted"></p>
+<p id="msg"></p>
+<p class="muted"><code id="code"></code></p>
+<p><button class="primary" id="retry">再読み込み</button></p>
+</div>
+<script>
+const q=new URLSearchParams(location.search), u=q.get('u')||'', d=q.get('d')||'';
+const MSG={
+ ERR_NAME_NOT_RESOLVED:'サーバーが見つかりません。アドレスの打ち間違いか、インターネットに接続できていない可能性があります。',
+ ERR_INTERNET_DISCONNECTED:'インターネットに接続されていません。ネットワークを確認してください。',
+ ERR_CONNECTION_REFUSED:'接続を拒否されました。',
+ ERR_CONNECTION_TIMED_OUT:'応答がありませんでした。',
+ ERR_TIMED_OUT:'応答がありませんでした。',
+ ERR_CONNECTION_RESET:'接続がリセットされました。',
+ PAGE_CRASHED:'ページが応答しなくなりました。再読み込みしてください。'
+};
+let host=u; try{host=new URL(u).host||u}catch{}
+document.getElementById('host').textContent=host;
+document.getElementById('msg').textContent=MSG[d]||(d.startsWith('ERR_CERT')?'安全な接続を確認できませんでした。':'ページを読み込めませんでした。');
+document.getElementById('code').textContent=d;
+document.getElementById('retry').onclick=()=>{ if(u) location.href=u; };
+</script></body></html>

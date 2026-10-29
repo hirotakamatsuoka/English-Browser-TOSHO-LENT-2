@@ -1,0 +1,122 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ホーム</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>
+body{background:#f3f4f6}
+.wrap{max-width:1200px;margin:0 auto;padding:36px 32px 48px}
+.top{display:flex;align-items:center;gap:20px;margin-bottom:28px;flex-wrap:wrap}
+.top h1{margin:0;font-size:24px}
+#sf{flex:1;min-width:260px;max-width:520px;margin-left:auto}
+#sf input{width:100%;border-radius:22px;padding:10px 18px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.tile{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:190px;padding:22px 24px;border-radius:12px;color:#fff;text-decoration:none}
+a.tile:hover{filter:brightness(1.08);text-decoration:none}
+a.tile:focus-visible{outline:3px solid #202124;outline-offset:3px}
+.tile .t{font-size:34px;font-weight:700;line-height:1.2;word-break:break-all}
+.tile .h{margin-top:6px;font-size:13px;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .tools{position:absolute;top:12px;right:12px;display:flex;gap:6px}
+.tile .tools button{background:rgba(255,255,255,.92);border:0;padding:4px 12px;font-size:13px}
+.add{border:2px dashed #b0b4b9;background:transparent;color:var(--sub);align-items:center;justify-content:center;cursor:pointer;font-size:18px}
+.add:hover{background:#e8eaed}
+.foot{margin-top:28px;display:flex;gap:10px}
+dialog{border:1px solid var(--line);border-radius:10px;padding:24px;width:min(440px,92vw)}
+dialog input[type=password]{font-size:18px;letter-spacing:4px}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog label{display:block;font-weight:600;margin:12px 0 4px}
+dialog input{width:100%}
+dialog .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+#derr{color:#b3261e;min-height:20px;margin:8px 0 0}
+</style></head>
+<body><div class="wrap">
+ <div class="top"><h1 id="hello">ホーム</h1>
+  <form id="sf"><input type="search" id="q" placeholder="検索またはURLを入力" autocomplete="off"></form></div>
+ <div class="grid" id="grid"></div>
+ <div class="foot"><button id="edit">編集</button><button id="reset" style="display:none">初期のお気に入りに戻す</button></div>
+</div>
+<dialog id="pdlg"><form method="dialog" id="pf">
+ <h2>暗証番号</h2>
+ <p class="muted" style="margin:0 0 8px">お気に入りの編集には暗証番号が必要です。</p>
+ <input id="pp" type="password" inputmode="numeric" maxlength="8" autocomplete="off" style="width:100%">
+ <p id="perr" style="color:#b3261e;min-height:20px;margin:8px 0 0"></p>
+ <div class="btns"><button type="button" id="pcancel">キャンセル</button><button class="primary" type="submit">解除</button></div>
+</form></dialog>
+<dialog id="dlg"><form method="dialog" id="df">
+ <h2 id="dtitle">お気に入りを追加</h2>
+ <label for="ft">名前</label><input id="ft" type="text" maxlength="40">
+ <label for="fu">URL</label><input id="fu" type="text" placeholder="https://">
+ <p id="derr"></p>
+ <div class="btns"><button type="button" id="dcancel">キャンセル</button><button class="primary" type="submit">保存</button></div>
+</form></dialog>
+<script>
+const $=id=>document.getElementById(id);
+const COLORS=['#3b5b92','#2f6f5e','#8a4b3d','#6b4f8f','#4d6a2f','#7a5c1e','#2c6b7a','#7a3b55'];
+let fav=[], edit=false, editing=-1;
+const hostOf=u=>{try{return new URL(u).host}catch{return u}};
+const colorOf=(s)=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return COLORS[h%COLORS.length];};
+
+async function load(){
+  const d=await api.invoke('home:get');
+  fav=d.favorites;
+  $('hello').textContent=d.userName?`${d.userName}さん、こんにちは`:'ホーム';
+  draw();
+}
+function draw(){
+  const g=$('grid'); g.textContent='';
+  fav.forEach((f,i)=>{
+    const el=document.createElement(edit?'div':'a');
+    el.className='tile'; el.style.background=colorOf(f.title+f.url);
+    if(!edit) el.href=f.url;
+    const t=document.createElement('div'); t.className='t'; t.textContent=f.title;
+    const h=document.createElement('div'); h.className='h'; h.textContent=hostOf(f.url);
+    el.append(t,h);
+    if(edit){
+      const tools=document.createElement('div'); tools.className='tools';
+      const e=document.createElement('button'); e.textContent='編集'; e.onclick=()=>openDlg(i);
+      const x=document.createElement('button'); x.textContent='削除'; x.className='danger'; x.onclick=()=>{ fav.splice(i,1); persist(); };
+      tools.append(e,x); el.appendChild(tools);
+    }
+    g.appendChild(el);
+  });
+  if(edit&&fav.length<30){
+    const a=document.createElement('div'); a.className='tile add'; a.textContent='＋ お気に入りを追加'; a.onclick=()=>openDlg(-1);
+    g.appendChild(a);
+  }
+  if(!fav.length&&!edit){ const p=document.createElement('p'); p.className='empty'; p.textContent='お気に入りがありません。「編集」から追加できます。'; g.appendChild(p); }
+  $('edit').textContent=edit?'完了':'編集';
+  $('reset').style.display=edit?'':'none';
+}
+async function persist(){ const r=await api.invoke('home:set',fav); if(r&&r.locked){ edit=false; await load(); return; } draw(); }
+let pres=null;
+async function ensureUnlocked(){
+  const st=await api.invoke('pin:status');
+  if(!st.set||st.unlocked) return true;
+  $('pp').value=''; $('perr').textContent=''; $('pdlg').showModal(); $('pp').focus();
+  return new Promise(res=>{ pres=res; });
+}
+$('pcancel').onclick=()=>{ $('pdlg').close(); if(pres){pres(false);pres=null;} };
+$('pf').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const r=await api.invoke('pin:verify',$('pp').value);
+  if(r.ok){ $('pdlg').close(); if(pres){pres(true);pres=null;} }
+  else $('perr').textContent=r.wait?`しばらくしてからもう一度お試しください（${r.wait}秒）`:'暗証番号が違います。';
+});
+function openDlg(i){
+  editing=i; $('dtitle').textContent=i<0?'お気に入りを追加':'お気に入りを編集';
+  $('ft').value=i<0?'':fav[i].title; $('fu').value=i<0?'':fav[i].url; $('derr').textContent='';
+  $('dlg').showModal(); $('ft').focus();
+}
+$('dcancel').onclick=()=>$('dlg').close();
+$('df').addEventListener('submit',async e=>{
+  e.preventDefault();
+  let u=$('fu').value.trim(); const t=$('ft').value.trim();
+  if(u&&!/^https?:\/\//i.test(u)) u='https://'+u;
+  try{ const p=new URL(u); if(!/^https?:$/.test(p.protocol)) throw 0; }catch{ $('derr').textContent='URLを正しく入力してください。'; return; }
+  const item={title:t||hostOf(u),url:u};
+  if(editing<0) fav.push(item); else fav[editing]=item;
+  $('dlg').close(); await persist();
+});
+$('edit').onclick=async()=>{ if(!edit&&!(await ensureUnlocked())) return; edit=!edit; draw(); };
+$('reset').onclick=async()=>{ if(confirm('お気に入りを初期の5つに戻します。よろしいですか？')){ const r=await api.invoke('home:reset'); if(r.locked){ edit=false; await load(); return; } fav=r.favorites; draw(); } };
+$('sf').addEventListener('submit',e=>{ e.preventDefault(); const v=$('q').value.trim(); if(v) api.invoke('nav:go',v); });
+api.on('home:changed',load);
+load();
+</script></body></html>

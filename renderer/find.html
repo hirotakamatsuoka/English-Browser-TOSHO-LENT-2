@@ -1,0 +1,30 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>find</title>
+<style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;font:13px "Segoe UI","Yu Gothic UI",sans-serif;color:#202124}
+.card{position:absolute;left:8px;right:12px;top:0;height:52px;display:flex;align-items:center;gap:4px;padding:0 8px 0 14px;background:#fff;border:1px solid #dadce0;border-radius:0 0 8px 8px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:16px;background:transparent}
+#cnt{color:#5f6368;min-width:44px;text-align:right;padding-right:6px;border-right:1px solid #dadce0;margin-right:4px}
+button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;cursor:pointer;color:#5f6368;font-size:17px;line-height:1}
+button:hover{background:#f1f3f4}
+</style></head>
+<body><div class="card">
+<input id="q" type="text" placeholder="ページ内を検索" spellcheck="false" autocomplete="off">
+<span id="cnt"></span>
+<button id="up" title="前へ (Shift+Enter)">&#9650;</button>
+<button id="dn" title="次へ (Enter)">&#9660;</button>
+<button id="x" title="閉じる (Esc)">&#10005;</button>
+</div>
+<script>
+const q=document.getElementById('q'), cnt=document.getElementById('cnt');
+const run=(forward,next)=>api.invoke('find:query',{text:q.value,forward,next});
+q.addEventListener('input',()=>run(true,false));
+q.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ e.preventDefault(); run(!e.shiftKey,true); }
+  if(e.key==='Escape'){ api.invoke('find:close'); }
+});
+document.getElementById('up').onclick=()=>run(false,true);
+document.getElementById('dn').onclick=()=>run(true,true);
+document.getElementById('x').onclick=()=>api.invoke('find:close');
+api.on('find:open',()=>{ q.focus(); q.select(); if(q.value) run(true,false); });
+api.on('find:result',r=>{ cnt.textContent=q.value?`${r.active}/${r.total}`:''; });
+</script></body></html>

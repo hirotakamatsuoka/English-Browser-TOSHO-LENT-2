@@ -1,0 +1,146 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>初期設定</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>
+html,body{height:100%;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center;background:#eceff1}
+body.bar{background:#fff;border-top:1px solid #c4c7c5;align-items:stretch}
+.card{width:min(560px,92vw);background:#fff;border:1px solid var(--line);border-radius:10px;padding:32px 36px}
+.step{color:var(--sub);font-size:13px;margin-bottom:6px}
+.card h1{margin-bottom:12px}
+.card p{margin:0 0 16px}
+label.field{display:block;margin-bottom:6px;font-weight:600}
+#name{width:100%;font-size:16px;padding:9px 12px}
+.opts{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.opt:hover{background:#f6f7f8}
+.opt input{margin:0}
+.opt .rg{color:var(--sub);margin-left:auto}
+.custom{display:flex;align-items:center;gap:8px;margin-left:auto}
+.btns{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.err{color:#b3261e;min-height:20px;margin:0 0 6px}
+.welcome{text-align:center}
+.welcome h1{font-size:30px}
+#bar{display:none;width:100%;align-items:center;gap:20px;padding:0 24px}
+body.bar #bar{display:flex}
+body.bar #main{display:none}
+#bar .tt{font-weight:600}
+#bar .sub{color:var(--sub);font-size:13px}
+#bar button.primary{font-size:15px;padding:10px 26px}
+section{display:none}
+section.on{display:block}
+</style></head>
+<body>
+<div id="main">
+ <div class="card">
+  <section id="s-name">
+   <div class="step">1 / 3</div><h1>ユーザー名</h1>
+   <p class="muted">このブラウザを使う人の名前を入力してください。名前はこのパソコンの中にだけ保存され、インターネットには送られません。</p>
+   <label class="field" for="name">ユーザー名</label>
+   <input id="name" type="text" maxlength="40" autocomplete="off">
+   <p class="err" id="e1"></p>
+   <div class="btns"><button class="primary" id="n1">次へ</button></div>
+  </section>
+  <section id="s-usage">
+   <div class="step">2 / 3</div><h1>利用時間と暗証番号</h1>
+   <p class="muted">このブラウザを使える時間帯を選んでください。時間外は画面がロックされます。</p>
+   <div class="opts" id="opts"></div>
+   <label class="field" for="pin">設定用の暗証番号（任意）</label>
+   <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="4〜8桁の数字" style="width:100%">
+   <p class="muted" style="font-size:13px;margin:6px 0 14px">設定の変更・お気に入りの編集・データ削除のときに必要になります。空欄なら暗証番号なしです。あとから設定画面でも変えられます。</p>
+   <p class="err" id="e2"></p>
+   <div class="btns"><button id="b2">もどる</button><button class="primary" id="n2">次へ</button></div>
+  </section>
+  <section id="s-welcome" class="welcome">
+   <h1 id="wtitle">ようこそ</h1>
+   <p class="muted" id="wsub"></p>
+  </section>
+ </div>
+</div>
+<div id="bar">
+ <div><div class="tt" id="bt"></div><div class="sub">3 / 3　ポータルにログイン　ログインが終わったら右のボタンを押してください。</div></div>
+ <div class="spacer"></div>
+ <button id="cancel" style="display:none">やめる</button>
+ <button class="primary" id="next">次のポータルへ</button>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const MODES=[['day','day'],['morning','morning'],['afternoon','afternoon'],['custom','custom'],['none','none']];
+let S=null, built=false, cd=null;
+
+function buildOpts(){
+  const box=$('opts'); box.textContent='';
+  const add=(mode,label,range)=>{
+    const l=document.createElement('label'); l.className='opt';
+    l.innerHTML=`<input type="radio" name="u" value="${mode}"><span>${label}</span>`;
+    if(range){ const r=document.createElement('span'); r.className='rg'; r.textContent=range; l.appendChild(r); }
+    if(mode==='custom'){
+      const c=document.createElement('span'); c.className='custom';
+      c.innerHTML='<input type="time" id="cs"><span>〜</span><input type="time" id="ce">';
+      l.appendChild(c);
+    }
+    box.appendChild(l);
+  };
+  const f=s=>{const [h,m]=s.split(':');return Number(h)+':'+m;};
+  for(const k of ['day','morning','afternoon']) add(k,S.presets[k].label,f(S.presets[k].start)+'〜'+f(S.presets[k].end));
+  add('custom','カスタム','');
+  add('none','設定しない','いつでも使える');
+  box.addEventListener('change',syncCustom);
+  built=true;
+}
+function syncCustom(){
+  const m=document.querySelector('input[name=u]:checked');
+  const on=m&&m.value==='custom';
+  $('cs').disabled=!on; $('ce').disabled=!on;
+}
+function show(id){ for(const s of document.querySelectorAll('section')) s.classList.toggle('on',s.id===id); }
+
+function render(){
+  if(!S) return;
+  document.body.classList.toggle('bar',S.step==='portal');
+  if(S.step==='name'){
+    show('s-name'); if(document.activeElement!==$('name')&&!$('name').value) $('name').value=S.userName||'';
+    setTimeout(()=>$('name').focus(),0);
+  }else if(S.step==='usage'){
+    if(!built) buildOpts();
+    show('s-usage');
+    const u=S.usage, r=document.querySelector(`input[name=u][value=${u.mode}]`);
+    if(r) r.checked=true;
+    $('cs').value=u.start; $('ce').value=u.end; syncCustom();
+  }else if(S.step==='portal'){
+    $('bt').textContent=`${S.portal} のログインページ（${S.idx+1} / ${S.total}）`;
+    const last=S.idx===S.total-1;
+    $('next').textContent=last?'ログインを完了':'次のポータルへ';
+    $('cancel').style.display=S.first?'none':'';
+  }else if(S.step==='welcome'){
+    show('s-welcome');
+    $('wtitle').textContent=`ようこそ、${S.userName}さん`;
+    if(cd===null){
+      let n=5; const set=()=>{$('wsub').textContent=`${n}秒後にブラウザを開きます`;}; set();
+      cd=setInterval(()=>{ n=Math.max(0,n-1); set(); if(n<=0) clearInterval(cd); },1000);
+    }
+  }
+}
+api.on('wizard:state',s=>{S=s; render();});
+api.invoke('wizard:get').then(s=>{ if(s){S=s; render();} });
+
+async function sendName(){
+  const v=$('name').value.trim();
+  if(!v){ $('e1').textContent='ユーザー名を入力してください。'; return; }
+  $('e1').textContent=''; await api.invoke('wizard:name',v);
+}
+$('n1').onclick=sendName;
+$('name').addEventListener('keydown',e=>{ if(e.key==='Enter') sendName(); });
+$('b2').onclick=()=>api.invoke('wizard:back');
+$('n2').onclick=async()=>{
+  const m=document.querySelector('input[name=u]:checked');
+  if(!m){ $('e2').textContent='利用時間を選んでください。'; return; }
+  const u={mode:m.value,start:$('cs').value,end:$('ce').value,pin:$('pin').value.trim()};
+  if(u.pin&&!/^\d{4,8}$/.test(u.pin)){ $('e2').textContent='暗証番号は4〜8桁の数字で入力してください。'; return; }
+  if(m.value==='custom'&&(!u.start||!u.end||u.start===u.end)){ $('e2').textContent='開始と終了の時刻を、違う時刻で入力してください。'; return; }
+  $('e2').textContent='';
+  const r=await api.invoke('wizard:usage',u);
+  if(!r.ok) $('e2').textContent=r.error==='pin'?'暗証番号は4〜8桁の数字で入力してください。':'時刻の形式を確認してください。';
+};
+$('next').onclick=()=>api.invoke('wizard:next');
+$('cancel').onclick=()=>api.invoke('wizard:cancel');
+</script></body></html>

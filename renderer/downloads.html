@@ -1,0 +1,45 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ダウンロード</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>
+.item{padding:12px 14px;border-bottom:1px solid var(--line)}
+.item .nm{font-weight:600;word-break:break-all}
+.item .st{color:var(--sub);font-size:13px;margin:2px 0 8px}
+.bar{height:6px;background:#e3e5e8;border-radius:3px;overflow:hidden;margin:6px 0 8px}
+.bar>div{height:100%;background:var(--accent)}
+.item .ac{display:flex;gap:8px}
+.item .ac button{padding:3px 12px;font-size:13px}
+</style></head>
+<body><div class="page">
+ <div class="row" style="margin-bottom:12px"><h1 style="margin:0">ダウンロード</h1><div class="spacer"></div><button id="clr">一覧をクリア</button></div>
+ <div id="list"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const hostOf=u=>{try{return new URL(u).host}catch{return ''}};
+const fmt=n=>{ if(!n||n<0) return '0 B'; const u=['B','KB','MB','GB']; let i=0; while(n>=1024&&i<3){n/=1024;i++;} return (i?n.toFixed(1):n)+' '+u[i]; };
+const LABEL={completed:'完了',cancelled:'キャンセルしました',interrupted:'中断されました',paused:'一時停止中'};
+async function load(){
+  const items=await api.invoke('downloads:list');
+  const box=$('list'); box.textContent='';
+  if(!items.length){ const p=document.createElement('p'); p.className='empty'; p.textContent='ダウンロードしたファイルはありません。'; box.appendChild(p); return; }
+  for(const d of items){
+    const row=document.createElement('div'); row.className='item';
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=d.name;
+    const st=document.createElement('div'); st.className='st';
+    const prog=d.state==='progressing';
+    st.textContent=prog?`${fmt(d.received)} / ${d.total>0?fmt(d.total):'不明'}`:`${LABEL[d.state]||d.state}　${hostOf(d.url)}`;
+    row.append(nm,st);
+    if(prog){ const b=document.createElement('div'); b.className='bar'; const i=document.createElement('div'); i.style.width=(d.total>0?Math.min(100,d.received/d.total*100):30)+'%'; b.appendChild(i); row.appendChild(b); }
+    const ac=document.createElement('div'); ac.className='ac';
+    const btn=(t,fn,cls)=>{ const b=document.createElement('button'); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; ac.appendChild(b); };
+    if(d.state==='completed') btn('開く',()=>api.invoke('downloads:open',d.id));
+    if(d.state==='completed') btn('フォルダーで表示',()=>api.invoke('downloads:show',d.id));
+    if(prog) btn('キャンセル',()=>api.invoke('downloads:cancel',d.id),'danger');
+    else btn('一覧から削除',async()=>{ await api.invoke('downloads:remove',d.id); load(); });
+    row.appendChild(ac); box.appendChild(row);
+  }
+}
+$('clr').onclick=async()=>{ await api.invoke('downloads:clear'); load(); };
+api.on('downloads:changed',load);
+load();
+</script></body></html>

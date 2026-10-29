@@ -1,0 +1,37 @@
+{
+  "name": "portal-browser",
+  "productName": "Portal Browser",
+  "version": "1.0.0",
+  "description": "ツールバーとタブバーを隠せるブラウザ",
+  "main": "main.js",
+  "author": "Portal Browser",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "jp.local.portalbrowser",
+    "productName": "Portal Browser",
+    "files": ["main.js", "preload.js", "renderer/**/*"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      { "provider": "generic", "url": "https://github.com/hirotakamatsuoka/English-Browser-ToSho-Lent/releases" }
+    ]
+  }
+}

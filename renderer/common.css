@@ -1,0 +1,23 @@
+:root{--bg:#f6f7f8;--fg:#202124;--sub:#5f6368;--line:#dadce0;--accent:#1a5fb4}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:14px/1.6 "Segoe UI","Yu Gothic UI","Meiryo UI",sans-serif;color:var(--fg);background:var(--bg)}
+h1{font-size:22px;font-weight:600;margin:0 0 16px}
+h2{font-size:16px;font-weight:600;margin:0 0 10px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:6px;padding:9px 18px;min-height:40px;color:var(--fg)}
+button:hover{background:#f1f3f4}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:#174f95}
+button.danger{color:#b3261e}
+button:disabled{opacity:.5;cursor:default}
+input[type=text],input[type=url],input[type=time],input[type=search],select{font:inherit;padding:10px 12px;min-height:42px;border:1px solid #bdc1c6;border-radius:6px;background:#fff;color:var(--fg)}
+input:focus,select:focus{outline:2px solid #a8c7fa;border-color:var(--accent)}
+.page{max-width:900px;margin:0 auto;padding:32px 24px 64px}
+.muted{color:var(--sub)}
+.row{display:flex;align-items:center;gap:12px}
+.spacer{flex:1}
+.section{background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin-bottom:16px}
+.empty{color:var(--sub);padding:24px 0}
+input[type=radio],input[type=checkbox]{width:22px;height:22px;flex:none}

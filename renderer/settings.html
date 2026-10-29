@@ -1,0 +1,181 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>設定</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>
+.field{display:flex;align-items:center;gap:12px;margin:8px 0;flex-wrap:wrap}
+.field>label.n{width:150px;color:var(--sub)}
+.opt{display:flex;align-items:center;gap:10px;padding:8px 0}
+.opt .rg{color:var(--sub)}
+.checks label{display:flex;align-items:center;gap:10px;padding:8px 0}
+#toast{position:fixed;right:20px;bottom:20px;background:#202124;color:#fff;padding:10px 18px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:10}
+#gate[hidden]{display:none}
+#gate .card{width:min(380px,90vw);background:#fff;border:1px solid var(--line);border-radius:10px;padding:28px}
+#gate input,.pin{font-size:18px;letter-spacing:4px;width:180px}
+.err{color:#b3261e;min-height:22px;margin:6px 0}
+</style></head>
+<body>
+<div id="gate" hidden><div class="card">
+ <h1 style="font-size:20px">暗証番号を入力</h1>
+ <p class="muted" style="margin-top:0">設定を開くには暗証番号が必要です。</p>
+ <input id="gpin" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
+ <p class="err" id="gerr"></p>
+ <button class="primary" id="gok">解除</button>
+</div></div>
+
+<div class="page">
+ <h1>設定</h1>
+
+ <div class="section"><h2>ユーザー</h2>
+  <div class="field"><label class="n" for="name">ユーザー名</label><input id="name" type="text" maxlength="40"></div>
+  <div class="muted">この名前はこのパソコンの中にだけ保存されます。</div>
+ </div>
+
+ <div class="section"><h2>利用時間</h2><div id="usage"></div></div>
+
+ <div class="section"><h2>表示</h2>
+  <div class="checks">
+   <label><input type="checkbox" id="hideBars">タブバーとツールバーを隠す<span class="muted">（画面上部の ▾ をタップすると戻ります）</span></label>
+   <label><input type="checkbox" id="restoreTabs">起動時に前回のタブを残す</label>
+  </div>
+  <div class="muted" style="margin-top:6px">ツールバーの全画面ボタンを使うと、Windowsのタスクバーも隠れます。</div>
+  <div class="field" style="margin-top:12px"><label class="n" for="engine">検索エンジン</label><select id="engine"></select></div>
+ </div>
+
+ <div class="section"><h2>暗証番号</h2>
+  <div id="pinbox"></div>
+ </div>
+
+ <div class="section"><h2>ポータル</h2>
+  <p class="muted" style="margin-top:0">Lentrance と1〜3年英語のログインを、もう一度順番に行います。</p>
+  <button id="portals">ポータルのログインをやり直す</button>
+ </div>
+
+ <div class="section"><h2>閲覧データの削除</h2>
+  <div class="checks">
+   <label><input type="checkbox" id="c-cookies">Cookieとサイトのデータ（ログイン状態も消えます）</label>
+   <label><input type="checkbox" id="c-cache">キャッシュ</label>
+   <label><input type="checkbox" id="c-history">閲覧履歴</label>
+   <label><input type="checkbox" id="c-downloads">ダウンロード履歴</label>
+  </div>
+  <p><button class="danger" id="clear">選んだデータを削除</button></p>
+ </div>
+
+ <div class="section"><h2>アップデート</h2>
+  <div class="field"><label class="n">バージョン</label><span id="ver"></span></div>
+  <div class="field"><label class="n">状態</label><span id="ust"></span></div>
+  <button id="uchk">更新を確認</button>
+ </div>
+</div>
+<div id="toast">保存しました</div>
+<script>
+const $=id=>document.getElementById(id);
+let S=null, tt=null;
+const f=s=>{const [h,m]=s.split(':');return Number(h)+':'+m;};
+function toast(t){ const el=$('toast'); el.textContent=t||'保存しました'; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),1600); }
+const waitMsg=r=>r.wait?`しばらくしてからもう一度お試しください（${r.wait}秒）`:'暗証番号が違います。';
+
+// ── 暗証番号の入力画面
+function showGate(){ $('gate').hidden=false; $('gpin').value=''; $('gerr').textContent=''; $('gpin').focus(); }
+async function unlock(){
+  const r=await api.invoke('pin:verify',$('gpin').value);
+  if(r.ok){ $('gate').hidden=true; load(); } else { $('gerr').textContent=waitMsg(r); $('gpin').select(); }
+}
+$('gok').onclick=unlock;
+$('gpin').addEventListener('keydown',e=>{ if(e.key==='Enter') unlock(); });
+
+async function call(ch,arg){
+  const r=await api.invoke(ch,arg);
+  if(r&&r.locked){ showGate(); return null; }
+  return r;
+}
+async function set(p){ const r=await call('settings:set',p); if(r) toast(r.ok?'保存しました':'保存できませんでした'); }
+
+// ── 利用時間
+function buildUsage(){
+  const box=$('usage'); box.textContent='';
+  const add=(mode,label,range)=>{
+    const l=document.createElement('label'); l.className='opt';
+    l.innerHTML=`<input type="radio" name="u" value="${mode}"><span>${label}</span>`;
+    if(range){ const r=document.createElement('span'); r.className='rg'; r.textContent=range; l.appendChild(r); }
+    if(mode==='custom'){ const c=document.createElement('span'); c.innerHTML='<input type="time" id="cs"> 〜 <input type="time" id="ce">'; l.appendChild(c); }
+    box.appendChild(l);
+  };
+  for(const k of ['day','morning','afternoon']) add(k,S.presets[k].label,f(S.presets[k].start)+'〜'+f(S.presets[k].end));
+  add('custom','カスタム',''); add('none','設定しない','いつでも使える');
+  box.onchange=saveUsage;
+}
+function saveUsage(){
+  const m=document.querySelector('input[name=u]:checked'); if(!m) return;
+  const u={mode:m.value,start:$('cs').value,end:$('ce').value};
+  $('cs').disabled=$('ce').disabled=m.value!=='custom';
+  if(m.value==='custom'&&(!u.start||!u.end||u.start===u.end)) return;
+  set({usage:u});
+}
+
+// ── 暗証番号の設定
+function buildPin(){
+  const b=$('pinbox'); b.textContent='';
+  const inp=(id,ph)=>`<input class="pin" id="${id}" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="${ph}">`;
+  if(S.pinSet){
+    b.innerHTML=`<p class="muted" style="margin-top:0">暗証番号を設定中です。変更するときは、いまの番号と新しい番号を入力してください。</p>
+    <div class="field"><label class="n">いまの番号</label>${inp('p-cur','')}</div>
+    <div class="field"><label class="n">新しい番号</label>${inp('p-new','4〜8桁の数字')}</div>
+    <p class="err" id="p-err"></p>
+    <div class="field"><button class="primary" id="p-change">変更</button><button class="danger" id="p-remove">暗証番号をやめる</button><button id="p-lock">いまロックする</button></div>`;
+    $('p-change').onclick=async()=>{
+      const r=await api.invoke('pin:set',{current:$('p-cur').value,pin:$('p-new').value});
+      if(r.ok){ toast('変更しました'); buildPin(); }
+      else $('p-err').textContent=r.error==='format'?'新しい番号は4〜8桁の数字にしてください。':waitMsg(r);
+    };
+    $('p-remove').onclick=async()=>{
+      const r=await api.invoke('pin:remove',$('p-cur').value);
+      if(r.ok){ toast('暗証番号をやめました'); load(); } else $('p-err').textContent=waitMsg(r);
+    };
+    $('p-lock').onclick=async()=>{ await api.invoke('pin:lock'); showGate(); };
+  }else{
+    b.innerHTML=`<p class="muted" style="margin-top:0">設定の変更・お気に入りの編集・データ削除を、暗証番号がないとできないようにします。</p>
+    <div class="field"><label class="n">暗証番号</label>${inp('p-new','4〜8桁の数字')}</div>
+    <div class="field"><label class="n">もう一度</label>${inp('p-new2','')}</div>
+    <p class="err" id="p-err"></p>
+    <button class="primary" id="p-set">暗証番号を設定</button>`;
+    $('p-set').onclick=async()=>{
+      if($('p-new').value!==$('p-new2').value){ $('p-err').textContent='2つの番号が一致しません。'; return; }
+      const r=await api.invoke('pin:set',{pin:$('p-new').value});
+      if(r.ok){ toast('設定しました'); load(); } else $('p-err').textContent='4〜8桁の数字にしてください。';
+    };
+  }
+}
+
+async function load(){
+  const r=await api.invoke('settings:get');
+  if(r.locked){ showGate(); return; }
+  S=r; $('gate').hidden=true;
+  $('name').value=S.userName;
+  buildUsage();
+  document.querySelector(`input[name=u][value=${S.usage.mode}]`).checked=true;
+  $('cs').value=S.usage.start; $('ce').value=S.usage.end; $('cs').disabled=$('ce').disabled=S.usage.mode!=='custom';
+  $('hideBars').checked=S.hideBars; $('restoreTabs').checked=S.restoreTabs;
+  const sel=$('engine'); sel.textContent='';
+  for(const [k,v] of Object.entries(S.engines)){ const o=document.createElement('option'); o.value=k; o.textContent=v; sel.appendChild(o); }
+  sel.value=S.searchEngine;
+  $('ver').textContent=S.version; $('ust').textContent=S.updateStatus;
+  buildPin();
+}
+$('name').addEventListener('change',()=>{ if($('name').value.trim()) set({userName:$('name').value}); });
+for(const k of ['hideBars','restoreTabs']) $(k).addEventListener('change',e=>set({[k]:e.target.checked}));
+$('engine').addEventListener('change',e=>set({searchEngine:e.target.value}));
+$('portals').onclick=()=>call('wizard:open-portals');
+$('clear').onclick=async()=>{
+  const o={cookies:$('c-cookies').checked,cache:$('c-cache').checked,history:$('c-history').checked,downloads:$('c-downloads').checked};
+  if(!Object.values(o).some(Boolean)){ toast('削除する項目を選んでください'); return; }
+  if(!confirm('選んだデータを削除します。よろしいですか？')) return;
+  const r=await call('data:clear',o); if(!r) return;
+  toast('削除しました');
+  for(const id of ['c-cookies','c-cache','c-history','c-downloads']) $(id).checked=false;
+};
+$('uchk').onclick=async()=>{ $('ust').textContent=await api.invoke('update:check'); };
+api.on('update:status',s=>{ $('ust').textContent=s; });
+api.on('settings:changed',()=>{ if($('gate').hidden) load(); });
+load();
+</script></body></html>

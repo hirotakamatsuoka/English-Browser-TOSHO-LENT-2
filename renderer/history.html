@@ -1,0 +1,40 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>履歴</title>
+<link rel="stylesheet" href="pbrowser://assets/common.css">
+<style>
+.day{margin:22px 0 6px;font-weight:600;color:var(--sub)}
+.item{display:flex;align-items:center;gap:14px;padding:7px 10px;border-radius:6px}
+.item:hover{background:#eceff1}
+.item .tm{width:48px;color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
+.item .ti{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .ho{color:var(--sub);flex:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item button{border:0;background:transparent;padding:6px 14px;min-height:36px;color:var(--sub)}
+</style></head>
+<body><div class="page">
+ <div class="row" style="margin-bottom:18px"><h1 style="margin:0">履歴</h1><div class="spacer"></div>
+  <input type="search" id="q" placeholder="履歴を検索" style="width:260px"><button class="danger" id="clr">履歴をすべて削除</button></div>
+ <div id="list"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const hostOf=u=>{try{return new URL(u).host}catch{return u}};
+async function load(){
+  const items=await api.invoke('history:list',$('q').value);
+  const box=$('list'); box.textContent='';
+  if(!items.length){ const p=document.createElement('p'); p.className='empty'; p.textContent=$('q').value?'見つかりませんでした。':'履歴はありません。'; box.appendChild(p); return; }
+  let cur='';
+  for(const h of items){
+    const d=new Date(h.time);
+    const key=d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+    if(key!==cur){ cur=key; const g=document.createElement('div'); g.className='day'; g.textContent=key; box.appendChild(g); }
+    const row=document.createElement('div'); row.className='item';
+    const tm=document.createElement('span'); tm.className='tm'; tm.textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    const a=document.createElement('a'); a.className='ti'; a.href=h.url; a.textContent=h.title||h.url;
+    const ho=document.createElement('span'); ho.className='ho'; ho.textContent=hostOf(h.url);
+    const x=document.createElement('button'); x.textContent='削除'; x.onclick=async()=>{ await api.invoke('history:delete',h.id); load(); };
+    row.append(tm,a,ho,x); box.appendChild(row);
+  }
+}
+let t=null; $('q').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(load,150);});
+$('clr').onclick=async()=>{ if(confirm('閲覧履歴をすべて削除します。よろしいですか？')){ await api.invoke('history:clear'); load(); } };
+load();
+</script></body></html>
