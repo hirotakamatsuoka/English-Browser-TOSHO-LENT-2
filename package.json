@@ -1,7 +1,7 @@
 {
   "name": "portal-browser",
   "productName": "Portal Browser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ツールバーとタブバーを隠せるブラウザ",
   "main": "main.js",
   "author": "Portal Browser",
@@ -25,13 +25,14 @@
     "files": ["main.js", "preload.js", "renderer/**/*"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+  "oneClick": true,
+  "perMachine": false,
+  "runAfterFinish": true,
+  "deleteAppDataOnUninstall": false,
+  "artifactName": "Portal-Browser-Setup-${version}.exe"
     },
     "publish": [
-      { "provider": "generic", "url": "https://github.com/hirotakamatsuoka/English-Browser-ToSho-Lent/releases" }
+      { "provider": "github", "owner": "hirotakamatsuoka", "repo": "English-Browser-TOSHO-LENT-2" }
     ]
   }
 }
